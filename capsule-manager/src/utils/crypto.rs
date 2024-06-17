@@ -11,7 +11,7 @@ pub fn create_cert(
 ) -> Result<X509, ErrorStack> {
     let mut x509_name = X509NameBuilder::new()?;
     for (&k, &v) in x509_names {
-        println!("{k}, {v}");
+        // println!("{k}, {v}");
         x509_name.append_entry_by_text(k, v)?;
     }
     let x509_name = x509_name.build();

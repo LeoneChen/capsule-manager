@@ -24,6 +24,7 @@ use config::config::Config;
 use log::info;
 use std::fs;
 use std::str::{from_utf8, FromStr};
+use tokio::sync::oneshot;
 use tonic::transport::Server;
 
 #[tokio::main(worker_threads = 16)]
@@ -55,6 +56,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .expect("capsule_manager init error");
 
     info!("Server run at: {:?} mode {:?}", addr, cfg.mode);
+    let (tx, rx) = oneshot::channel::<()>();
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Failed to listen for ctrl_c signal");
+        tx.send(()).expect("Failed to send shutdown signal");
+    });
     if cfg.enable_tls.unwrap() {
         // Configure the server certificate for the client to verify the server
         let svr_cert = fs::read_to_string(cfg.server_cert_path.as_ref().unwrap()).unwrap();
@@ -75,12 +83,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Server::builder()
             .tls_config(tls_config)?
             .add_service(CapsuleManagerServer::new(capsule_manager))
-            .serve(addr)
+            .serve_with_shutdown(addr, async {
+                rx.await.ok();
+            })
             .await?;
     } else {
         Server::builder()
             .add_service(CapsuleManagerServer::new(capsule_manager))
-            .serve(addr)
+            .serve_with_shutdown(addr, async {
+                rx.await.ok();
+            })
             .await?;
     }
 

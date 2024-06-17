@@ -126,7 +126,7 @@ impl Config {
         } else {
             config.mode = Some("simulation".to_owned());
         }
-        println!("config {:#?}", config);
+        // println!("config {:#?}", config);
         config
     }
 }
